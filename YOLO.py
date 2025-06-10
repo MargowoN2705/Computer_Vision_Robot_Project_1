@@ -28,11 +28,16 @@ class Object_Detection(Node):
         atexit.register(self.cleanup)
         time.sleep(2)
 
+        qos = QoSProfile(
+            depth=1,
+            reliability=QoSReliabilityPolicy.BEST_EFFORT
+        )
+
         self.sub = self.create_subscription(
             CompressedImage,
             '/image_raw/compressed',
             self.callback,
-            10
+            qos
         )
         cv2.namedWindow(self.cv_window_name, cv2.WINDOW_NORMAL)
 
