@@ -53,7 +53,7 @@ class MotorController(Node):
         lin = msg.linear.x
         ang = msg.angular.z
 
-        # Debug
+
         self.get_logger().info(f"cmd_vel received: linear.x={lin:.2f}, angular.z={ang:.2f}")
 
         # Priorytet – jeśli brak ruchu
@@ -71,6 +71,7 @@ class MotorController(Node):
                 self.set_right_motor('backward')
             else:
                 self.stop_motors()
+
         # Skręcanie w miejscu
         elif abs(lin) < 0.05:
             if ang > 0:
@@ -79,23 +80,8 @@ class MotorController(Node):
             elif ang < 0:
                 self.set_left_motor('forward')
                 self.set_right_motor('backward')
-        # Ruch + skręt
-        else:
-            if lin > 0:
-                if ang > 0:
-                    # do przodu + skręt w lewo: lewy wolniej (tu: off), prawy szybciej
-                    self.set_left_motor('off')
-                    self.set_right_motor('forward')
-                elif ang < 0:
-                    self.set_left_motor('forward')
-                    self.set_right_motor('off')
-            elif lin < 0:
-                if ang > 0:
-                    self.set_left_motor('off')
-                    self.set_right_motor('backward')
-                elif ang < 0:
-                    self.set_left_motor('backward')
-                    self.set_right_motor('off')
+
+
 
 def main(args=None):
     rclpy.init(args=args)

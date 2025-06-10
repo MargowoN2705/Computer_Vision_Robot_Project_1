@@ -51,10 +51,9 @@ class LiveViewerCompressed(Node):
         self.frame_count = 0 
         torch.backends.quantized.engine = 'qnnpack'
 
-        # 1) Zwolnij kamerę (opcjonalnie z poziomu skryptu)
-        # subprocess.run(['sudo', 'fuser', '-k', '/dev/video0'])
 
-        # 2) Uruchom ROS-ową kamerkę
+
+
         self.camera_process = subprocess.Popen([
             'ros2', 'run', 'v4l2_camera', 'v4l2_camera_node',
             '--ros-args', '-p', 'image_size:=[640,480]'
@@ -62,18 +61,18 @@ class LiveViewerCompressed(Node):
         atexit.register(self.cleanup)
         time.sleep(2)
 
-        # 3) Normalizacja i model
+
         self.normalize = Normalize(mean=[0.485,0.456,0.406], std=[0.229,0.224,0.225])
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.model = torch.jit.load('//home//bartek//Downloads//model_traced.pt',map_location = self.device)
         self.model.eval()
         
 
-        # 4) Subskrypcja i okno
+
         self.sub = self.create_subscription(CompressedImage, '/image_raw/compressed', self.callback, 10)
         cv2.namedWindow("Podgląd", cv2.WINDOW_NORMAL)
 
-        # 5) Haar-cascade
+
         cascade_path = '/usr/share/opencv4/haarcascades/haarcascade_frontalface_default.xml'
         if not os.path.exists(cascade_path):
             self.get_logger().error(f'Haar cascade not found: {cascade_path}')
@@ -84,40 +83,39 @@ class LiveViewerCompressed(Node):
         if self.frame_count % 10!=0:
             return 
         try:
-            # dekodowanie obrazu
+
             np_arr = np.frombuffer(msg.data, np.uint8)
             cv_image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
             cv_image = cv2.rotate(cv_image,cv2.ROTATE_180)
-            # detekcja twarzy (na szaro)
+
             gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
             faces = self.face_cascade.detectMultiScale(
                 gray, scaleFactor=1.1, minNeighbors=5, minSize=(60, 60)
             )
 
             for (x, y, w, h) in faces:
-                # wycinek twarzy w kolorze
+
                 face_bgr = cv_image[y:y+h, x:x+w]
-                # konwersja do RGB
+
                 face_rgb = cv2.cvtColor(face_bgr, cv2.COLOR_BGR2RGB)
-                # resize
+
                 face_resized = cv2.resize(face_rgb, (224, 224))
 
                 # przygotowanie tensora: (H,W,C)->(C,H,W), [0,1], normalizacja
                 tensor = torch.from_numpy(face_resized).permute(2,0,1).unsqueeze(0).float() / 255.0
                 tensor = self.normalize(tensor.squeeze(0)).unsqueeze(0).to(self.device)
 
-                # inferencja
-                with torch.no_grad():
-                    out = self.model(tensor)           # kształt (1,1)
-                    prob = torch.sigmoid(out)         # (1,1), w [0,1]
-                    pred = (prob > 0.5).int().item()  # 1 lub 0
 
-                # kolor ramki
+                with torch.no_grad():
+                    out = self.model(tensor)
+                    prob = torch.sigmoid(out)
+                    pred = (prob > 0.5).int().item()
+
+
                 color = (0,255,0) if pred==1 else (0,0,255)
                 cv2.rectangle(cv_image, (x,y), (x+w, y+h), color, 2)
 
-            # wyświetlanie
-            
+
             cv2.imshow(self.cv_window_name, cv_image)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 cv2.destroyAllWindows()

@@ -16,14 +16,15 @@ class Object_Detection(Node):
         super().__init__('live_viewer_compressed')
         self.cv_window_name = "Live YOLOv8n"
         
-        # Załaduj ultra-lekki model YOLOv8 nano
+
         self.model = YOLO('yolov8n.pt')
 
-        # Uruchom kamerę z mniejszą rozdzielczością 320x320 (większa szybkość)
+
         self.camera_process = subprocess.Popen([
             'ros2', 'run', 'v4l2_camera', 'v4l2_camera_node',
             '--ros-args', '-p', 'image_size:=[256,256]'
         ])
+
         atexit.register(self.cleanup)
         time.sleep(2)
 
@@ -48,35 +49,35 @@ class Object_Detection(Node):
                 cv_image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
                 cv_image = cv2.rotate(cv_image, cv2.ROTATE_180)
 
-                # Detekcja YOLO
+
                 results = self.model(cv_image)
 
-                # Narysuj bboxy i etykiety na obrazie
+
                 annotated_frame = results[0].plot()
 
                 twist = Twist()
                 obstacle_detected = False
 
-                for det in results[0].boxes:  # lista wykrytych boxów
-                    x1, y1, x2, y2 = det.xyxy[0].tolist()  # współrzędne bbox
+                for det in results[0].boxes:
+                    x1, y1, x2, y2 = det.xyxy[0].tolist()
                     cls = int(det.cls[0])
                     conf = det.conf[0]
 
                     box_width = x2 - x1
                     box_center_x = (x1 + x2) / 2
 
-                    # Sprawdź czy box jest wystarczająco duży (czyli blisko) i blisko centrum obrazu
+
                     if box_width / self.frame_width > self.stop_distance_threshold and \
                     (self.frame_width * 0.4 < box_center_x < self.frame_width * 0.6):
                         obstacle_detected = True
                         break
 
                 if obstacle_detected:
-                    # Stop lub skręć - prosta reakcja
+
                     twist.linear.x = 0.0
-                    twist.angular.z = 0.5  # skręt w prawo
+                    twist.angular.z = 0.5  #
                 else:
-                    # Jedź do przodu
+
                     twist.linear.x = 0.2
                     twist.angular.z = 0.0
 
