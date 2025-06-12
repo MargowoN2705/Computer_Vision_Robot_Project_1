@@ -9,6 +9,7 @@ import signal
 import atexit
 from geometry_msgs.msg import Twist 
 from ultralytics import YOLO
+from rlcpy.qos import QoSProfile, QoSReliabilityPolicy
 
 
 class Object_Detection(Node):
@@ -80,7 +81,7 @@ class Object_Detection(Node):
                 if obstacle_detected:
 
                     twist.linear.x = 0.0
-                    twist.angular.z = 0.5  #
+                    twist.angular.z = 0.5
                 else:
 
                     twist.linear.x = 0.2
